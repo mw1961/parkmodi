@@ -190,7 +190,7 @@
                 const API_URL = '/api';
                 const PARKING_LAT = 31.9054;
                 const PARKING_LON = 35.0055;
-                const MAX_DISTANCE_METERS = 200;
+                const MAX_DISTANCE_METERS = 300;
 
                 let spots = [];
                 let monthlyTickets = 0;
@@ -296,6 +296,16 @@
                 }
 
                 function initDemoData() {
+                    const today = new Date().toDateString();
+                    const lastResetDate = localStorage.getItem('last_reset_date');
+
+                    if (lastResetDate !== today) {
+                        // New day, reset everything
+                        localStorage.removeItem('demo_spots_v3');
+                        localStorage.setItem('last_reset_date', today);
+                        console.log("Midnight Reset Executed");
+                    }
+
                     try {
                         const stored = localStorage.getItem('demo_spots_v3');
                         if (stored) spots = JSON.parse(stored);
@@ -314,7 +324,7 @@
 
                     const debugDiv = document.createElement('div');
                     debugDiv.style.cssText = "position:fixed;bottom:0;left:0;background:lime;color:black;padding:5px;z-index:9999;font-weight:bold;font-size:14px;width:100%;text-align:center;";
-                    debugDiv.textContent = `SYSTEM ONLINE: v3-FINAL | SPOTS: ${spots.length}`;
+                    debugDiv.textContent = `SYSTEM ONLINE: v5-ANIMALS | SPOTS: ${spots.length}`;
                     document.body.appendChild(debugDiv);
                 }
 
@@ -324,23 +334,34 @@
                 }
 
                 async function toggleSpot(spotId, currentOccupantId) {
-                    const isOccupied = !!currentOccupantId;
-                    const intent = isOccupied ? 'release' : 'occupy';
-
-                    const userIdStr = await promptIdentity(intent === 'occupy' ? "הכנס מספר לחניה" : "הכנס מספר לשחרור");
+                    const userIdStr = await promptIdentity("הכנס מספר משתמש");
                     if (!userIdStr) return;
                     const userId = parseInt(userIdStr);
 
+                    // 1. Location Logic (300m rule, exempt 90-99)
+                    const isTestUser = (userId >= 90 && userId <= 99);
+                    if (!isTestUser && !isLocationValid) {
+                        alert("אתה רחוק מדי מהחניון (חובה להיות בטווח 300 מטר).");
+                        return;
+                    }
+
                     const spot = spots.find(s => s.id === spotId);
                     if (spot) {
-                        if (intent === 'occupy') {
-                            if (spot.status === 'occupied') { alert('החניה תפוסה'); return; }
-                            spot.status = 'occupied';
-                            spot.occupantId = userId;
-                        } else {
-                            if (spot.status !== 'occupied') { alert('החניה פנויה'); return; }
+                        const isOccupied = spot.status === 'occupied';
+
+                        if (isOccupied) {
+                            // Release Attempt
+                            // 2. Owner-Only Release Logic (Admin 99 can always release)
+                            if (spot.occupantId !== userId && userId !== 99) {
+                                alert("שגיאה: רק מי שתפס את החניה יכול לשחרר אותה.");
+                                return;
+                            }
                             spot.status = 'free';
                             spot.occupantId = null;
+                        } else {
+                            // Occupy Attempt
+                            spot.status = 'occupied';
+                            spot.occupantId = userId;
                         }
                         saveDemoData();
                         renderDashboard();
