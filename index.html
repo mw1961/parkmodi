@@ -378,8 +378,11 @@
                         const statusText = isOccupied ? `משתמש ${spot.occupantId}` : 'פנוי';
 
                         let animalImg = '';
-                        if (spot.id >= 1 && spot.id <= 5) {
-                            animalImg = `<img src="./animals/${spot.id}.svg?v=5" class="animal-icon" alt="Animal ${spot.id}" onerror="this.style.display='none'">`;
+                        // Map IDs 1-5 to specific animals
+                        const animals = { 1: 'butterfly', 2: 'rabbit', 3: 'bear', 4: 'fox', 5: 'kingfisher' };
+
+                        if (animals[spot.id]) {
+                            animalImg = `<img src="./animals/${animals[spot.id]}.svg" class="animal-icon" alt="${animals[spot.id]}" onerror="this.style.display='none'">`;
                         }
 
                         card.innerHTML = `<div class="card-number">${spot.id}</div>${animalImg}<div class="card-status">${statusText}</div>`;
