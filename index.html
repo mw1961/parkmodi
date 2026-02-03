@@ -297,7 +297,7 @@
 
                 function initDemoData() {
                     try {
-                        const stored = localStorage.getItem('demo_spots_fresh');
+                        const stored = localStorage.getItem('demo_spots_v3');
                         if (stored) spots = JSON.parse(stored);
                     } catch (e) { console.error(e); }
 
@@ -310,17 +310,17 @@
                         }));
                         saveDemoData();
                     }
-                    monthlyTickets = parseInt(localStorage.getItem('demo_tickets_fresh') || '0');
+                    monthlyTickets = parseInt(localStorage.getItem('demo_tickets_v3') || '0');
 
                     const debugDiv = document.createElement('div');
                     debugDiv.style.cssText = "position:fixed;bottom:0;left:0;background:lime;color:black;padding:5px;z-index:9999;font-weight:bold;font-size:14px;width:100%;text-align:center;";
-                    debugDiv.textContent = `SYSTEM ONLINE: FRESHA | SPOTS: ${spots.length}`;
+                    debugDiv.textContent = `SYSTEM ONLINE: v3-FINAL | SPOTS: ${spots.length}`;
                     document.body.appendChild(debugDiv);
                 }
 
                 function saveDemoData() {
-                    localStorage.setItem('demo_spots_fresh', JSON.stringify(spots));
-                    localStorage.setItem('demo_tickets_fresh', monthlyTickets);
+                    localStorage.setItem('demo_spots_v3', JSON.stringify(spots));
+                    localStorage.setItem('demo_tickets_v3', monthlyTickets);
                 }
 
                 async function toggleSpot(spotId, currentOccupantId) {
@@ -446,8 +446,8 @@
 
                     globalResetBtn.addEventListener('click', async () => {
                         if (confirm("האם אתה בטוח? פעולה זו תמחק הכל!")) {
-                            localStorage.removeItem('demo_spots_fresh');
-                            localStorage.removeItem('demo_tickets_fresh');
+                            localStorage.removeItem('demo_spots_v3');
+                            localStorage.removeItem('demo_tickets_v3');
                             alert("המערכת אופסה בהצלחה!");
                             location.reload();
                         }
