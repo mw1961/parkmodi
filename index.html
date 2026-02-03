@@ -302,7 +302,7 @@
                     } catch (e) { console.error(e); }
 
                     if (!Array.isArray(spots) || spots.length === 0) {
-                        spots = Array.from({ length: 55 }, (_, i) => ({
+                        spots = Array.from({ length: 5 }, (_, i) => ({
                             id: i + 1,
                             status: 'free',
                             occupantId: null,
@@ -389,16 +389,68 @@
                         if (userIdStr === '99') {
                             if (dashboardView) dashboardView.classList.add('hidden');
                             if (adminView) adminView.classList.remove('hidden');
+                            renderAdmin(); // <--- Call render function
                         } else if (userIdStr) {
                             alert("אין גישה");
                         }
                     };
                 }
 
+                function renderAdmin() {
+                    const usersList = document.getElementById('users-list');
+                    const reportsContainer = document.getElementById('reports-container');
+
+                    if (usersList) {
+                        const occupiedSpots = spots.filter(s => s.status === 'occupied');
+                        if (occupiedSpots.length === 0) {
+                            usersList.innerHTML = '<p>אין רכבים בחניה כרגע.</p>';
+                        } else {
+                            let html = '<table style="width:100%; border-collapse: collapse; color: white;"><thead><tr style="border-bottom: 1px solid #7f8c8d;"><th>חניה</th><th>משתמש</th></tr></thead><tbody>';
+                            occupiedSpots.forEach(s => {
+                                html += `<tr><td style="padding: 10px;">${s.id}</td><td>${s.occupantId}</td></tr>`;
+                            });
+                            html += '</tbody></table>';
+                            usersList.innerHTML = html;
+                        }
+                    }
+
+                    if (reportsContainer) {
+                        const occupiedCount = spots.filter(s => s.status === 'occupied').length;
+                        const freeCount = spots.length - occupiedCount;
+                        reportsContainer.innerHTML = `
+                            <div style="display: flex; justify-content: space-around; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                <div><strong>תפוסה:</strong> ${occupiedCount}</div>
+                                <div><strong>פנוי:</strong> ${freeCount}</div>
+                                <div><strong>חניות B החודש:</strong> ${monthlyTickets}</div>
+                            </div>
+                        `;
+                    }
+                }
+
                 if (backToDash) {
                     backToDash.addEventListener('click', () => {
                         if (adminView) adminView.classList.add('hidden');
                         if (dashboardView) dashboardView.classList.remove('hidden');
+                    });
+                }
+
+                // Admin Reset Logic
+                const confirmCheck = document.getElementById('confirm-export-check');
+                const globalResetBtn = document.getElementById('global-reset-btn');
+
+                if (confirmCheck && globalResetBtn) {
+                    confirmCheck.addEventListener('change', (e) => {
+                        globalResetBtn.disabled = !e.target.checked;
+                        globalResetBtn.style.opacity = e.target.checked ? "1" : "0.5";
+                    });
+
+                    globalResetBtn.addEventListener('click', async () => {
+                        if (confirm("האם אתה בטוח? פעולה זו תמחק הכל!")) {
+                            localStorage.removeItem('demo_spots_fresh');
+                            localStorage.removeItem('demo_tickets_fresh');
+                            alert("המערכת אופסה בהצלחה!");
+                            location.reload();
+                        }
                     });
                 }
 
