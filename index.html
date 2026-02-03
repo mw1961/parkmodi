@@ -358,7 +358,7 @@
 
                         let animalImg = '';
                         if (spot.id >= 1 && spot.id <= 5) {
-                            animalImg = `<img src="./animals/${spot.id}.png" class="animal-icon" alt="Animal ${spot.id}" onerror="this.style.display='none'">`;
+                            animalImg = `<img src="./animals/${spot.id}.svg" class="animal-icon" alt="Animal ${spot.id}" onerror="this.style.display='none'">`;
                         }
 
                         card.innerHTML = `<div class="card-number">${spot.id}</div>${animalImg}<div class="card-status">${statusText}</div>`;
