@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול חניה</title>
+    <link rel="stylesheet" href="./styles.css?v=1">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
+    <style>
+        /* Simple Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #2c3e50;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            border: 1px solid #7f8c8d;
+            background: #34495e;
+            color: white;
+            text-align: center;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Dashboard View (Default) -->
+    <div id="dashboard-view" class="container">
+        <header>
+            <h1>חניה</h1>
+            <div class="header-controls">
+                <span id="location-status" class="status-dot"></span>
+            </div>
+        </header>
+
+        <main>
+            <section id="lot-a">
+                <h2>חניון A - שמור</h2>
+                <div class="cards-container">
+                    <!-- Cards injected by JS -->
+                </div>
+            </section>
+
+            <section id="lot-b">
+                <h2>חניון B - מזדמן</h2>
+                <div class="lot-b-controls">
+                    <button id="ticket-btn" class="primary-btn">
+                        <span>🅿️ חניתי בחניון B</span>
+                        <small>קח כרטיס</small>
+                    </button>
+                    <div class="stats-card">
+                        <h3>סה"כ החודש</h3>
+                        <div id="ticket-count" class="counter">0</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <button id="admin-trigger-btn" style="
+            background-color: #f0f4f8; 
+            border: 2px solid #00008B; 
+            border-radius: 12px;
+            cursor: pointer; 
+            color: #00008B; 
+            font-weight: bold; 
+            font-size: 1.3rem; 
+            padding: 15px 30px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%; 
+            gap: 15px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        ">
+                <span style="font-size: 1.5rem;">🔐</span>
+                <span>כניסת מנהל מערכת</span>
+            </button>
+        </footer>
+    </div>
+
+    <!-- Identity Modal -->
+    <div id="identity-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">הזדהות</h2>
+            <p>אנא הכנס את מספרך.</p>
+            <form id="identity-form">
+                <input type="number" id="identity-input" class="modal-input" min="1" max="999" required
+                    placeholder="מספר משתמש" autofocus>
+                <div class="modal-actions">
+                    <button type="button" id="modal-cancel">ביטול</button>
+                    <button type="submit" id="modal-confirm">אישור</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin View -->
+    <div id="admin-view" class="container hidden">
+        <header>
+            <h1>פאנל ניהול</h1>
+            <button id="back-to-dash">יציאה</button>
+        </header>
+        <main>
+            <div class="admin-grid">
+                <div class="card">
+                    <h3>משתמשים</h3>
+                    <div id="users-list" class="list-container"></div>
+                </div>
+                <div class="card">
+                    <div class="flex-header">
+                        <h3>יומנים וסטטיסטיקה</h3>
+                        <div class="export-actions">
+                            <button onclick="exportToExcel()" class="icon-btn" title="ייצוא לאקסל">📊
+                                Excel</button>
+                            <button onclick="exportToWord()" class="icon-btn" title="ייצוא לוורד">📝
+                                Word</button>
+                            <button onclick="exportToPDF()" class="icon-btn" title="הדפסה / PDF">🖨️
+                                PDF</button>
+                            <button id="refresh-reports">רענן</button>
+                        </div>
+                    </div>
+
+                    <div id="reports-container" class="list-container">
+                        <!-- Tables will be injected here -->
+                    </div>
+
+                    <div class="danger-zone">
+                        <h4>איפוס מערכת חודשי</h4>
+                        <p class="warning-text">⚠️ פעולה זו תמחק את כל הרישומים, תאפס את כל החניות ותאפס את
+                            המונים.
+                            <strong>לא ניתן לשחזר!</strong>
+                        </p>
+                        <label>
+                            <input type="checkbox" id="confirm-export-check">
+                            שמרתי את דוחות החודש (חובה לסמן)
+                        </label>
+                        <button id="global-reset-btn" class="danger-btn" disabled>🛑 התחל חודש חדש (איפוס
+                            מלא)</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        (function () {
+            function startApp() {
+                console.log("Starting App Logic...");
+
+                // detect if running on GitHub Pages or local file
+                const isGitHubPages = window.location.hostname.includes('github.io') || window.location.protocol === 'file:';
+                const IS_DEMO_MODE = isGitHubPages || true;
+
+                const API_URL = '/api';
+                const PARKING_LAT = 31.9054;
+                const PARKING_LON = 35.0055;
+                const MAX_DISTANCE_METERS = 200;
+
+                let spots = [];
+                let monthlyTickets = 0;
+                let isLocationValid = false;
+
+                const dashboardView = document.getElementById('dashboard-view');
+                const adminView = document.getElementById('admin-view');
+                const locationStatus = document.getElementById('location-status');
+                const cardsContainer = document.querySelector('.cards-container');
+                const ticketBtn = document.getElementById('ticket-btn');
+                const ticketCount = document.getElementById('ticket-count');
+
+                const identityModal = document.getElementById('identity-modal');
+                const identityForm = document.getElementById('identity-form');
+                const identityInput = document.getElementById('identity-input');
+                const modalCancel = document.getElementById('modal-cancel');
+                const modalTitle = document.getElementById('modal-title');
+
+                function checkLocation() {
+                    if (!navigator.geolocation) {
+                        if (locationStatus) locationStatus.style.backgroundColor = "#e74c3c";
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const dist = getDistanceFromLatLonInM(
+                                position.coords.latitude,
+                                position.coords.longitude,
+                                PARKING_LAT,
+                                PARKING_LON
+                            );
+
+                            if (dist <= MAX_DISTANCE_METERS) {
+                                isLocationValid = true;
+                                if (locationStatus) {
+                                    locationStatus.style.backgroundColor = "#2ecc71";
+                                    locationStatus.title = `Location verified (${Math.round(dist)}m)`;
+                                }
+                            } else {
+                                isLocationValid = false;
+                                if (locationStatus) {
+                                    locationStatus.style.backgroundColor = "#e74c3c";
+                                    locationStatus.title = `Too far (${Math.round(dist)}m)`;
+                                }
+                            }
+                        },
+                        (err) => {
+                            console.error(err);
+                            isLocationValid = false;
+                            if (locationStatus) locationStatus.style.backgroundColor = "#e74c3c";
+                        },
+                        { enableHighAccuracy: true }
+                    );
+                }
+
+                function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+                    var R = 6371;
+                    var dLat = deg2rad(lat2 - lat1);
+                    var dLon = deg2rad(lon2 - lon1);
+                    var a =
+                        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    var d = R * c;
+                    return d * 1000;
+                }
+
+                function deg2rad(deg) { return deg * (Math.PI / 180); }
+
+                function promptIdentity(title = "הזדהות") {
+                    return new Promise((resolve) => {
+                        if (!identityModal) { alert("Missing modal"); return resolve(null); }
+                        modalTitle.textContent = title;
+                        identityModal.classList.add('visible');
+                        identityInput.value = '';
+                        identityInput.focus();
+
+                        const handleSubmit = (e) => {
+                            e.preventDefault();
+                            if (identityInput.value) {
+                                cleanup();
+                                resolve(identityInput.value);
+                            }
+                        };
+
+                        const handleCancel = () => { cleanup(); resolve(null); };
+
+                        const cleanup = () => {
+                            identityForm.removeEventListener('submit', handleSubmit);
+                            modalCancel.removeEventListener('click', handleCancel);
+                            identityModal.classList.remove('visible');
+                        };
+
+                        identityForm.addEventListener('submit', handleSubmit);
+                        modalCancel.addEventListener('click', handleCancel);
+                    });
+                }
+
+                async function fetchState() {
+                    initDemoData();
+                    renderDashboard();
+                }
+
+                function initDemoData() {
+                    try {
+                        const stored = localStorage.getItem('demo_spots_fresh');
+                        if (stored) spots = JSON.parse(stored);
+                    } catch (e) { console.error(e); }
+
+                    if (!Array.isArray(spots) || spots.length === 0) {
+                        spots = Array.from({ length: 55 }, (_, i) => ({
+                            id: i + 1,
+                            status: 'free',
+                            occupantId: null,
+                            timestamp: null
+                        }));
+                        saveDemoData();
+                    }
+                    monthlyTickets = parseInt(localStorage.getItem('demo_tickets_fresh') || '0');
+
+                    const debugDiv = document.createElement('div');
+                    debugDiv.style.cssText = "position:fixed;bottom:0;left:0;background:lime;color:black;padding:5px;z-index:9999;font-weight:bold;font-size:14px;width:100%;text-align:center;";
+                    debugDiv.textContent = `SYSTEM ONLINE: FRESHA | SPOTS: ${spots.length}`;
+                    document.body.appendChild(debugDiv);
+                }
+
+                function saveDemoData() {
+                    localStorage.setItem('demo_spots_fresh', JSON.stringify(spots));
+                    localStorage.setItem('demo_tickets_fresh', monthlyTickets);
+                }
+
+                async function toggleSpot(spotId, currentOccupantId) {
+                    const isOccupied = !!currentOccupantId;
+                    const intent = isOccupied ? 'release' : 'occupy';
+
+                    const userIdStr = await promptIdentity(intent === 'occupy' ? "הכנס מספר לחניה" : "הכנס מספר לשחרור");
+                    if (!userIdStr) return;
+                    const userId = parseInt(userIdStr);
+
+                    const spot = spots.find(s => s.id === spotId);
+                    if (spot) {
+                        if (intent === 'occupy') {
+                            if (spot.status === 'occupied') { alert('החניה תפוסה'); return; }
+                            spot.status = 'occupied';
+                            spot.occupantId = userId;
+                        } else {
+                            if (spot.status !== 'occupied') { alert('החניה פנויה'); return; }
+                            spot.status = 'free';
+                            spot.occupantId = null;
+                        }
+                        saveDemoData();
+                        renderDashboard();
+                    }
+                }
+
+                function renderDashboard() {
+                    if (!cardsContainer) return;
+                    cardsContainer.innerHTML = '';
+                    spots.sort((a, b) => a.id - b.id).forEach(spot => {
+                        const isOccupied = spot.status === 'occupied';
+                        const card = document.createElement('div');
+                        card.className = `parking-card ${isOccupied ? 'occupied' : 'free'}`;
+                        const statusText = isOccupied ? `משתמש ${spot.occupantId}` : 'פנוי';
+
+                        let animalImg = '';
+                        if (spot.id >= 1 && spot.id <= 5) {
+                            animalImg = `<img src="./animals/${spot.id}.png" class="animal-icon" alt="Animal ${spot.id}" onerror="this.style.display='none'">`;
+                        }
+
+                        card.innerHTML = `<div class="card-number">${spot.id}</div>${animalImg}<div class="card-status">${statusText}</div>`;
+                        card.addEventListener('click', () => toggleSpot(spot.id, spot.occupantId));
+                        cardsContainer.appendChild(card);
+                    });
+                    if (ticketCount) ticketCount.textContent = monthlyTickets;
+                }
+
+                if (ticketBtn) {
+                    ticketBtn.addEventListener('click', async () => {
+                        const userIdStr = await promptIdentity("הכנס מספר לכרטיס");
+                        if (!userIdStr) return;
+                        monthlyTickets++;
+                        saveDemoData();
+                        renderDashboard();
+                        alert("כרטיס נלקח (Demo)");
+                    });
+                }
+
+                // Admin Logic
+                const adminTrigger = document.getElementById('admin-trigger-btn');
+                const backToDash = document.getElementById('back-to-dash');
+
+                if (adminTrigger) {
+                    adminTrigger.onclick = async () => {
+                        const userIdStr = await promptIdentity("כניסת מנהל (99)");
+                        if (userIdStr === '99') {
+                            if (dashboardView) dashboardView.classList.add('hidden');
+                            if (adminView) adminView.classList.remove('hidden');
+                        } else if (userIdStr) {
+                            alert("אין גישה");
+                        }
+                    };
+                }
+
+                if (backToDash) {
+                    backToDash.addEventListener('click', () => {
+                        if (adminView) adminView.classList.add('hidden');
+                        if (dashboardView) dashboardView.classList.remove('hidden');
+                    });
+                }
+
+                // Exports
+                window.exportToExcel = function () { alert("Not available in Demo"); };
+                window.exportToWord = function () { alert("Not available in Demo"); };
+                window.exportToPDF = function () { window.print(); };
+
+                checkLocation();
+                initDemoData();
+                renderDashboard();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startApp);
+            } else {
+                startApp();
+            }
+        })();
+    </script>
+</body>
+
+</html>
