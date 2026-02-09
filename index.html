@@ -55,6 +55,10 @@
             justify-content: center;
         }
     </style>
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 
 <body>
@@ -64,7 +68,9 @@
         <header>
             <h1>חניה</h1>
             <div class="header-controls">
-                <span id="location-status" class="status-dot"></span>
+                <div class="header-controls">
+                    <!-- Location status removed -->
+                </div>
             </div>
         </header>
 
@@ -188,17 +194,15 @@
                 const IS_DEMO_MODE = isGitHubPages || true;
 
                 const API_URL = '/api';
-                const PARKING_LAT = 31.9054;
-                const PARKING_LON = 35.0055;
-                const MAX_DISTANCE_METERS = 300;
+                // Geolocation constants removed
 
                 let spots = [];
                 let monthlyTickets = 0;
-                let isLocationValid = false;
+                // isLocationValid removed
 
                 const dashboardView = document.getElementById('dashboard-view');
                 const adminView = document.getElementById('admin-view');
-                const locationStatus = document.getElementById('location-status');
+                // locationStatus removed
                 const cardsContainer = document.querySelector('.cards-container');
                 const ticketBtn = document.getElementById('ticket-btn');
                 const ticketCount = document.getElementById('ticket-count');
@@ -209,57 +213,21 @@
                 const modalCancel = document.getElementById('modal-cancel');
                 const modalTitle = document.getElementById('modal-title');
 
-                function checkLocation() {
-                    if (!navigator.geolocation) {
-                        if (locationStatus) locationStatus.style.backgroundColor = "#e74c3c";
-                        return;
-                    }
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const dist = getDistanceFromLatLonInM(
-                                position.coords.latitude,
-                                position.coords.longitude,
-                                PARKING_LAT,
-                                PARKING_LON
-                            );
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBVRfrhByD7aGLFZjSX3m33LM-IQUJy_Tw",
+                    authDomain: "parkmodi.firebaseapp.com",
+                    databaseURL: "https://parkmodi-default-rtdb.firebaseio.com",
+                    projectId: "parkmodi",
+                    storageBucket: "parkmodi.firebasestorage.app",
+                    messagingSenderId: "677614863921",
+                    appId: "1:677614863921:web:41504426e6470f3e5ab710"
+                };
 
-                            if (dist <= MAX_DISTANCE_METERS) {
-                                isLocationValid = true;
-                                if (locationStatus) {
-                                    locationStatus.style.backgroundColor = "#2ecc71";
-                                    locationStatus.title = `Location verified (${Math.round(dist)}m)`;
-                                }
-                            } else {
-                                isLocationValid = false;
-                                if (locationStatus) {
-                                    locationStatus.style.backgroundColor = "#e74c3c";
-                                    locationStatus.title = `Too far (${Math.round(dist)}m)`;
-                                }
-                            }
-                        },
-                        (err) => {
-                            console.error(err);
-                            isLocationValid = false;
-                            if (locationStatus) locationStatus.style.backgroundColor = "#e74c3c";
-                        },
-                        { enableHighAccuracy: true }
-                    );
+                // Initialize Firebase
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
                 }
-
-                function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-                    var R = 6371;
-                    var dLat = deg2rad(lat2 - lat1);
-                    var dLon = deg2rad(lon2 - lon1);
-                    var a =
-                        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    var d = R * c;
-                    return d * 1000;
-                }
-
-                function deg2rad(deg) { return deg * (Math.PI / 180); }
+                const db = firebase.database();
 
                 function promptIdentity(title = "הזדהות") {
                     return new Promise((resolve) => {
@@ -290,47 +258,32 @@
                     });
                 }
 
-                async function fetchState() {
-                    initDemoData();
-                    renderDashboard();
-                }
+                function fetchState() {
+                    // Normalize data structure if needed
+                    db.ref('spots').on('value', (snapshot) => {
+                        const data = snapshot.val();
+                        if (!data) {
+                            // Initialize default spots if DB is empty
+                            const defaultSpots = Array.from({ length: 5 }, (_, i) => ({
+                                id: i + 1,
+                                status: 'free',
+                                occupantId: null,
+                                timestamp: null
+                            }));
+                            db.ref('spots').set(defaultSpots);
+                            spots = defaultSpots;
+                        } else {
+                            spots = data;
+                        }
+                        renderDashboard();
+                        renderAdmin(); // Update admin view if open
+                    });
 
-                function initDemoData() {
-                    const today = new Date().toDateString();
-                    const lastResetDate = localStorage.getItem('last_reset_date');
-
-                    if (lastResetDate !== today) {
-                        // New day, reset everything
-                        localStorage.removeItem('demo_spots_v3');
-                        localStorage.setItem('last_reset_date', today);
-                        console.log("Midnight Reset Executed");
-                    }
-
-                    try {
-                        const stored = localStorage.getItem('demo_spots_v3');
-                        if (stored) spots = JSON.parse(stored);
-                    } catch (e) { console.error(e); }
-
-                    if (!Array.isArray(spots) || spots.length === 0) {
-                        spots = Array.from({ length: 5 }, (_, i) => ({
-                            id: i + 1,
-                            status: 'free',
-                            occupantId: null,
-                            timestamp: null
-                        }));
-                        saveDemoData();
-                    }
-                    monthlyTickets = parseInt(localStorage.getItem('demo_tickets_v3') || '0');
-
-                    const debugDiv = document.createElement('div');
-                    debugDiv.style.cssText = "position:fixed;bottom:0;left:0;background:lime;color:black;padding:5px;z-index:9999;font-weight:bold;font-size:14px;width:100%;text-align:center;";
-                    debugDiv.textContent = `SYSTEM ONLINE: v6-PREMIUM | SPOTS: ${spots.length}`;
-                    document.body.appendChild(debugDiv);
-                }
-
-                function saveDemoData() {
-                    localStorage.setItem('demo_spots_v3', JSON.stringify(spots));
-                    localStorage.setItem('demo_tickets_v3', monthlyTickets);
+                    db.ref('tickets').on('value', (snapshot) => {
+                        monthlyTickets = snapshot.val() || 0;
+                        if (ticketCount) ticketCount.textContent = monthlyTickets;
+                        renderAdmin();
+                    });
                 }
 
                 async function toggleSpot(spotId, currentOccupantId) {
@@ -338,34 +291,48 @@
                     if (!userIdStr) return;
                     const userId = parseInt(userIdStr);
 
-                    // 1. Location Logic (300m rule, exempt 90-99)
-                    const isTestUser = (userId >= 90 && userId <= 99);
-                    if (!isTestUser && !isLocationValid) {
-                        alert("אתה רחוק מדי מהחניון (חובה להיות בטווח 300 מטר).");
-                        return;
-                    }
+                    // 1. Location Logic Removed
 
-                    const spot = spots.find(s => s.id === spotId);
-                    if (spot) {
-                        const isOccupied = spot.status === 'occupied';
+                    // Find the current state of the spot directly from the local cache (which is synced)
+                    // But for atomicity, transactions are better, though simple updates allow less conflict.
+                    // We will use a transaction to ensure we don't overwrite changes.
 
-                        if (isOccupied) {
-                            // Release Attempt
-                            // 2. Owner-Only Release Logic (Admin 99 can always release)
-                            if (spot.occupantId !== userId && userId !== 99) {
-                                alert("שגיאה: רק מי שתפס את החניה יכול לשחרר אותה.");
-                                return;
+                    const spotRef = db.ref(`spots/${spotId - 1}`); // Assuming spotId 1 maps to index 0
+
+                    spotRef.transaction((currentSpot) => {
+                        if (currentSpot) {
+                            if (currentSpot.status === 'occupied') {
+                                // Release Attempt
+                                // 2. Owner-Only Release Logic (Admin 99 can always release)
+                                if (currentSpot.occupantId !== userId && userId !== 99) {
+                                    // We can't alert inside a transaction easily, so we handle it after or abort.
+                                    // Returning undefined aborts the transaction.
+                                    return;
+                                }
+                                return { ...currentSpot, status: 'free', occupantId: null };
+                            } else {
+                                // Occupy Attempt
+                                return { ...currentSpot, status: 'occupied', occupantId: userId };
                             }
-                            spot.status = 'free';
-                            spot.occupantId = null;
-                        } else {
-                            // Occupy Attempt
-                            spot.status = 'occupied';
-                            spot.occupantId = userId;
                         }
-                        saveDemoData();
-                        renderDashboard();
-                    }
+                        return currentSpot;
+                    }, (error, committed, snapshot) => {
+                        if (error) {
+                            alert("שגיאה בתקשורת: " + error);
+                        } else if (!committed) {
+                            // Logic failure (e.g. permission denied by code above)
+                            // We need to check WHY it wasn't committed. 
+                            // In this simple transaction, if it returns undefined, it's not committed.
+
+                            // Re-check locally to give specific error
+                            const spot = spots.find(s => s.id === spotId);
+                            if (spot && spot.status === 'occupied' && spot.occupantId !== userId && userId !== 99) {
+                                alert("שגיאה: רק מי שתפס את החניה יכול לשחרר אותה.");
+                            } else {
+                                console.log("Transaction aborted or not needed.");
+                            }
+                        }
+                    });
                 }
 
                 function renderDashboard() {
@@ -396,10 +363,11 @@
                     ticketBtn.addEventListener('click', async () => {
                         const userIdStr = await promptIdentity("הכנס מספר לכרטיס");
                         if (!userIdStr) return;
-                        monthlyTickets++;
-                        saveDemoData();
-                        renderDashboard();
-                        alert("כרטיס נלקח (Demo)");
+
+                        db.ref('tickets').transaction((currentCount) => {
+                            return (currentCount || 0) + 1;
+                        });
+                        alert("כרטיס נרשם בהצלחה");
                     });
                 }
 
@@ -470,10 +438,19 @@
 
                     globalResetBtn.addEventListener('click', async () => {
                         if (confirm("האם אתה בטוח? פעולה זו תמחק הכל!")) {
-                            localStorage.removeItem('demo_spots_v3');
-                            localStorage.removeItem('demo_tickets_v3');
+                            // Firebase Reset
+                            const defaultSpots = Array.from({ length: 5 }, (_, i) => ({
+                                id: i + 1,
+                                status: 'free',
+                                occupantId: null,
+                                timestamp: null
+                            }));
+
+                            await db.ref('spots').set(defaultSpots);
+                            await db.ref('tickets').set(0);
+
                             alert("המערכת אופסה בהצלחה!");
-                            location.reload();
+                            // No need to reload, listeners will update UI
                         }
                     });
                 }
@@ -483,9 +460,8 @@
                 window.exportToWord = function () { alert("Not available in Demo"); };
                 window.exportToPDF = function () { window.print(); };
 
-                checkLocation();
-                initDemoData();
-                renderDashboard();
+                // checkLocation(); // Removed
+                fetchState(); // Replaces initDemoData + renderDashboard
             }
 
             if (document.readyState === 'loading') {
