@@ -258,7 +258,50 @@
                     });
                 }
 
+                function checkDailyReset() {
+                    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+                    db.ref('sys/lastResetDate').once('value', (snapshot) => {
+                        const lastReset = snapshot.val();
+
+                        if (lastReset !== today) {
+                            console.log("New day detected. Resetting parking spots...");
+
+                            // Transaction to ensure only one client triggers the reset
+                            db.ref('sys/lastResetDate').transaction((currentDate) => {
+                                if (currentDate !== today) {
+                                    return today;
+                                }
+                                return; // Abort if already updated
+                            }, (error, committed, snapshot) => {
+                                if (error) {
+                                    console.error("Reset transaction failed abnormaly", error);
+                                } else if (committed) {
+                                    // This client won the race to reset
+                                    console.log("Performing daily reset...");
+
+                                    const defaultSpots = Array.from({ length: 5 }, (_, i) => ({
+                                        id: i + 1,
+                                        status: 'free',
+                                        occupantId: null,
+                                        timestamp: null
+                                    }));
+
+                                    // Reset spots and tickets
+                                    db.ref('spots').set(defaultSpots);
+                                    db.ref('tickets').set(0);
+                                    // alert("יום חדש! המערכת אופסה באופן אוטומטי."); // Optional alert
+                                } else {
+                                    console.log("Daily reset already performed by another client.");
+                                }
+                            });
+                        }
+                    });
+                }
+
                 function fetchState() {
+                    checkDailyReset(); // Check for reset on load/state fetch
+
                     // Normalize data structure if needed
                     db.ref('spots').on('value', (snapshot) => {
                         const data = snapshot.val();
