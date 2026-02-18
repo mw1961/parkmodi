@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תדריך ביטחון ואבטחת מידע ליוצאים לחו"ל</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>תדריך ביטחון ליוצאים לחו"ל ✈️</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </header>
+
+        <main id="contentArea">
+            <!-- Dynamic Content Will Be Loaded Here -->
+        </main>
+
+        <footer>
+            <button id="prevBtn" onclick="prevSlide()" disabled>חזור</button>
+            <span id="slideCounter">1 / 5</span>
+            <button id="nextBtn" onclick="nextSlide()">המשך</button>
+        </footer>
+    </div>
+
+    <!-- Templates for different slide types -->
+
+    <!-- Title Slide Template -->
+    <template id="tmpl-title">
+        <div class="slide title-slide">
+            <div class="icon-large">🛡️</div>
+            <h2>{{title}}</h2>
+            <p>{{text}}</p>
+        </div>
+    </template>
+
+    <!-- Content Slide Template (Text + List) -->
+    <template id="tmpl-content">
+        <div class="slide content-slide">
+            <h2>{{title}}</h2>
+            <div class="content-body">{{body}}</div>
+        </div>
+    </template>
+
+    <!-- Video Slide Template -->
+    <template id="tmpl-video">
+        <div class="slide video-slide">
+            <h2>{{title}}</h2>
+            <p>{{text}}</p>
+            <div class="video-wrapper">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/{{videoId}}" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+            </div>
+        </div>
+    </template>
+
+    <!-- Quiz Slide Template -->
+    <template id="tmpl-quiz">
+        <div class="slide quiz-slide">
+            <h2>שאלה לבדיקה {{index}}</h2>
+            <p class="question-text">{{question}}</p>
+            <div class="options-container" id="quizOptions"></div>
+            <div class="feedback" id="quizFeedback"></div>
+        </div>
+    </template>
+
+    <!-- Form Slide Template -->
+    <template id="tmpl-form">
+        <div class="slide form-slide">
+            <h2>{{title}}</h2>
+            <p>אנא מלא את אנשי הקשר החיוניים לפני היציאה:</p>
+            <form id="contactForm">
+                <div class="form-group">
+                    <label>נציגות ישראל המקומית:</label>
+                    <input type="text" id="contact1" placeholder="שגרירות/קונסוליה...">
+                </div>
+                <div class="form-group">
+                    <label>מוקד חירום:</label>
+                    <input type="text" id="contact2" placeholder="משרד החוץ/משרד...">
+                </div>
+                <div class="form-group">
+                    <label>קב&quot;ט המשרד:</label>
+                    <input type="text" id="contact3" placeholder="דיווח על אירועי סייבר...">
+                </div>
+                <div class="form-group">
+                    <label>כתובת המלון:</label>
+                    <input type="text" id="contact4" placeholder="למקרה של אובדן טלפון...">
+                </div>
+            </form>
+            <button class="print-btn" onclick="window.print()">🖨️ הדפס/שמור כ-PDF</button>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
