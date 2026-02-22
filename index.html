@@ -334,28 +334,33 @@
                     if (!userIdStr) return;
                     const userId = parseInt(userIdStr);
 
-                    // 1. Location Logic Removed
-
-                    // Find the current state of the spot directly from the local cache (which is synced)
-                    // But for atomicity, transactions are better, though simple updates allow less conflict.
-                    // We will use a transaction to ensure we don't overwrite changes.
-
-                    const spotRef = db.ref(`spots/${spotId - 1}`); // Assuming spotId 1 maps to index 0
+                    const spotRef = db.ref(`spots/${spotId - 1}`);
 
                     spotRef.transaction((currentSpot) => {
                         if (currentSpot) {
                             if (currentSpot.status === 'occupied') {
                                 // Release Attempt
-                                // 2. Owner-Only Release Logic (Admin 99 can always release)
                                 if (currentSpot.occupantId !== userId && userId !== 99) {
-                                    // We can't alert inside a transaction easily, so we handle it after or abort.
-                                    // Returning undefined aborts the transaction.
-                                    return;
+                                    return; // Abort: not the owner and not admin
                                 }
-                                return { ...currentSpot, status: 'free', occupantId: null };
+                                return { ...currentSpot, status: 'free', occupantId: null, timestamp: null };
                             } else {
                                 // Occupy Attempt
-                                return { ...currentSpot, status: 'occupied', occupantId: userId };
+                                // 1. CRITICAL: Check if already occupied
+                                if (currentSpot.status !== 'free') return;
+
+                                // 2. CRITICAL: Check if user already has another spot (if not admin)
+                                if (userId !== 99) {
+                                    // Note: We check against the local 'spots' state here which is synced,
+                                    // but we do it inside the transaction logic block.
+                                    const userExistingSpot = spots.find(s => s.status === 'occupied' && s.occupantId === userId && s.id !== spotId);
+                                    if (userExistingSpot) {
+                                        // Transaction will abort if we return undefined
+                                        return;
+                                    }
+                                }
+
+                                return { ...currentSpot, status: 'occupied', occupantId: userId, timestamp: firebase.database.ServerValue.TIMESTAMP };
                             }
                         }
                         return currentSpot;
@@ -363,16 +368,23 @@
                         if (error) {
                             alert("שגיאה בתקשורת: " + error);
                         } else if (!committed) {
-                            // Logic failure (e.g. permission denied by code above)
-                            // We need to check WHY it wasn't committed. 
-                            // In this simple transaction, if it returns undefined, it's not committed.
-
-                            // Re-check locally to give specific error
-                            const spot = spots.find(s => s.id === spotId);
-                            if (spot && spot.status === 'occupied' && spot.occupantId !== userId && userId !== 99) {
-                                alert("שגיאה: רק מי שתפס את החניה יכול לשחרר אותה.");
-                            } else {
-                                console.log("Transaction aborted or not needed.");
+                            const spot = snapshot.val();
+                            if (spot && spot.status === 'occupied') {
+                                if (spot.occupantId === userId) {
+                                    console.log("Already occupied by you.");
+                                } else if (userId === 99) {
+                                    if (confirm(`חניה זו תפוסה על ידי משתמש ${spot.occupantId}. האם לשחרר אותה?`)) {
+                                        spotRef.update({ status: 'free', occupantId: null, timestamp: null });
+                                    }
+                                } else {
+                                    alert(`שגיאה: חניה זו כבר תפוסה על ידי משתמש ${spot.occupantId}. רק הוא יכול לשחרר אותה.`);
+                                }
+                            } else if (userId !== 99) {
+                                // Check if aborted due to "already has a spot"
+                                const existing = spots.find(s => s.status === 'occupied' && s.occupantId === userId);
+                                if (existing) {
+                                    alert(`שגיאה: כבר יש לך חניה רשומה (חניה מספר ${existing.id}). עליך לשחרר אותה לפני תפיסת חניה חדשה.`);
+                                }
                             }
                         }
                     });
