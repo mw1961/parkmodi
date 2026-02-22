@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ניהול חניה</title>
-    <link rel="stylesheet" href="./styles.css?v=1">
-    <link rel="manifest" href="./manifest.json">
+    <link rel="stylesheet" href="./styles.css?v=2">
+    <link rel="manifest" href="./manifest.json?v=2">
     <meta name="theme-color" content="#1e1e1e">
     <style>
         /* Simple Modal Styles */
@@ -334,56 +334,58 @@
                     if (!userIdStr) return;
                     const userId = parseInt(userIdStr);
 
-                    const spotRef = db.ref(`spots/${spotId - 1}`);
+                    // Atomic transaction on the entire 'spots' collection
+                    const spotsRef = db.ref('spots');
 
-                    spotRef.transaction((currentSpot) => {
-                        if (currentSpot) {
-                            if (currentSpot.status === 'occupied') {
-                                // Release Attempt
-                                if (currentSpot.occupantId !== userId && userId !== 99) {
-                                    return; // Abort: not the owner and not admin
-                                }
-                                return { ...currentSpot, status: 'free', occupantId: null, timestamp: null };
-                            } else {
-                                // Occupy Attempt
-                                // 1. CRITICAL: Check if already occupied
-                                if (currentSpot.status !== 'free') return;
+                    spotsRef.transaction((currentSpots) => {
+                        if (!currentSpots) return currentSpots;
 
-                                // 2. CRITICAL: Check if user already has another spot (if not admin)
-                                if (userId !== 99) {
-                                    // Note: We check against the local 'spots' state here which is synced,
-                                    // but we do it inside the transaction logic block.
-                                    const userExistingSpot = spots.find(s => s.status === 'occupied' && s.occupantId === userId && s.id !== spotId);
-                                    if (userExistingSpot) {
-                                        // Transaction will abort if we return undefined
-                                        return;
-                                    }
-                                }
+                        const spotIdx = currentSpots.findIndex(s => s.id === spotId);
+                        if (spotIdx === -1) return currentSpots;
 
-                                return { ...currentSpot, status: 'occupied', occupantId: userId, timestamp: firebase.database.ServerValue.TIMESTAMP };
+                        const spot = currentSpots[spotIdx];
+
+                        if (spot.status === 'occupied') {
+                            // Release Attempt
+                            if (spot.occupantId !== userId && userId !== 99) {
+                                return; // Abort
                             }
+                            currentSpots[spotIdx] = { ...spot, status: 'free', occupantId: null, timestamp: null };
+                        } else {
+                            // Occupy Attempt
+                            if (spot.status !== 'free') return;
+
+                            // One spot per user limit (except admin)
+                            if (userId !== 99) {
+                                const alreadyHasSpot = currentSpots.some(s => s.status === 'occupied' && s.occupantId === userId);
+                                if (alreadyHasSpot) return;
+                            }
+
+                            currentSpots[spotIdx] = {
+                                ...spot,
+                                status: 'occupied',
+                                occupantId: userId,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            };
                         }
-                        return currentSpot;
+                        return currentSpots;
                     }, (error, committed, snapshot) => {
                         if (error) {
                             alert("שגיאה בתקשורת: " + error);
                         } else if (!committed) {
-                            const spot = snapshot.val();
-                            if (spot && spot.status === 'occupied') {
-                                if (spot.occupantId === userId) {
-                                    console.log("Already occupied by you.");
-                                } else if (userId === 99) {
-                                    if (confirm(`חניה זו תפוסה על ידי משתמש ${spot.occupantId}. האם לשחרר אותה?`)) {
-                                        spotRef.update({ status: 'free', occupantId: null, timestamp: null });
-                                    }
-                                } else {
-                                    alert(`שגיאה: חניה זו כבר תפוסה על ידי משתמש ${spot.occupantId}. רק הוא יכול לשחרר אותה.`);
-                                }
-                            } else if (userId !== 99) {
-                                // Check if aborted due to "already has a spot"
-                                const existing = spots.find(s => s.status === 'occupied' && s.occupantId === userId);
-                                if (existing) {
-                                    alert(`שגיאה: כבר יש לך חניה רשומה (חניה מספר ${existing.id}). עליך לשחרר אותה לפני תפיסת חניה חדשה.`);
+                            const latestSpots = snapshot.val();
+                            if (!latestSpots) return;
+
+                            const spot = latestSpots.find(s => s.id === spotId);
+                            const userExistingSpot = latestSpots.find(s => s.status === 'occupied' && s.occupantId === userId);
+
+                            if (userId !== 99 && userExistingSpot && spot.status === 'free') {
+                                alert(`שגיאה: כבר יש לך חניה רשומה (חניה מספר ${userExistingSpot.id}). עליך לשחרר אותה לפני תפיסת חניה חדשה.`);
+                            } else if (spot && spot.status === 'occupied' && spot.occupantId !== userId && userId !== 99) {
+                                alert(`שגיאה: חניה זו כבר תפוסה על ידי משתמש ${spot.occupantId}.`);
+                            } else if (userId === 99 && spot && spot.status === 'occupied') {
+                                if (confirm(`חניה זו תפוסה על ידי משתמש ${spot.occupantId}. האם לשחרר אותה?`)) {
+                                    db.ref(`spots/${spotId - 1}`).update({ status: 'free', occupantId: null, timestamp: null });
                                 }
                             }
                         }
